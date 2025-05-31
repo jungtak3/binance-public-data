@@ -323,6 +323,33 @@ def merge_symbol_klines_csvs(symbol, csv_file_paths, output_directory):
             continue
         try:
             df = pd.read_csv(f_path, header=None)
+            
+            # Fix timestamps: check if first and 7th columns have 16-digit values and convert to 13-digit
+            if not df.empty and len(df.columns) >= 7:
+                try:
+                    # Check both columns 0 (open_time) and 6 (close_time) for 16-digit timestamps
+                    first_col = df.iloc[:, 0]
+                    seventh_col = df.iloc[:, 6]
+                    
+                    # Convert to string to check length, regardless of original data type
+                    sample_first = str(first_col.dropna().iloc[0]) if len(first_col.dropna()) > 0 else ""
+                    sample_seventh = str(seventh_col.dropna().iloc[0]) if len(seventh_col.dropna()) > 0 else ""
+                    
+                    # Check if timestamps are 16 digits (need to be reduced to 13)
+                    if (len(sample_first) == 16 and sample_first.isdigit()) or (len(sample_seventh) == 16 and sample_seventh.isdigit()):
+                        print(f"Fixing 16-digit timestamps in {f_path_str} by removing last 3 digits")
+                        
+                        # Fix first column (open_time) - remove last 3 digits if 16 digits long
+                        df.iloc[:, 0] = first_col.apply(lambda x: str(int(x))[:-3] if len(str(int(x))) == 16 else str(int(x)))
+                        
+                        # Fix seventh column (close_time) - remove last 3 digits if 16 digits long
+                        df.iloc[:, 6] = seventh_col.apply(lambda x: str(int(x))[:-3] if len(str(int(x))) == 16 else str(int(x)))
+                        
+                        print(f"Fixed timestamps: {sample_first} -> {str(int(first_col.iloc[0]))[:-3] if len(str(int(first_col.iloc[0]))) == 16 else str(int(first_col.iloc[0]))}")
+                        
+                except Exception as e:
+                    print(f"Warning: Error during timestamp fix for {f_path_str}: {e}")
+            
             df.columns = CANONICAL_KLINES_HEADERS
             all_dfs.append(df)
         except pd.errors.EmptyDataError:
@@ -449,12 +476,95 @@ if __name__ == "__main__":
               all_extracted_csvs[symbol] = []
           all_extracted_csvs[symbol].extend(paths)
 
+    # Debug: Check what files are available for merging
+    print(f"\nDebug: all_extracted_csvs contains: {all_extracted_csvs}")
+    
+    # Enhanced merging logic: collect both newly extracted files AND existing individual files
+    all_symbols_to_merge = set(symbols)  # All symbols we're processing
+    
+    # Add any symbols that had extracted files
     if all_extracted_csvs:
-        print("\nStarting CSV merging process...")
-        for symbol, csv_paths in all_extracted_csvs.items():
-            if csv_paths: 
-                merge_symbol_klines_csvs(symbol, csv_paths, args.folder)
-            else:
-                print(f"No CSVs found to merge for symbol: {symbol}")
+        all_symbols_to_merge.update(all_extracted_csvs.keys())
+    
+    print(f"Debug: Symbols to check for merging: {all_symbols_to_merge}")
+    
+    symbols_with_files_to_merge = {}
+    
+    for symbol in all_symbols_to_merge:
+        symbol_files = []
+        
+        # Add newly extracted files
+        if symbol in all_extracted_csvs:
+            symbol_files.extend(all_extracted_csvs[symbol])
+            print(f"Debug: {symbol} - Added {len(all_extracted_csvs[symbol])} newly extracted files")
+        
+        # Also collect any existing individual CSV files that haven't been merged
+        # Look in the data directory structure for this symbol
+        data_pattern_monthly = f"{args.folder}/data/spot/monthly/klines/{symbol.upper()}/*/{symbol.upper()}-*-*-*.csv"
+        data_pattern_daily = f"{args.folder}/data/spot/daily/klines/{symbol.upper()}/*/{symbol.upper()}-*-*-*-*.csv"
+        
+        import glob
+        print(f"Debug: {symbol} - Checking monthly pattern: {data_pattern_monthly}")
+        print(f"Debug: {symbol} - Checking daily pattern: {data_pattern_daily}")
+        
+        existing_monthly_files = glob.glob(data_pattern_monthly)
+        existing_daily_files = glob.glob(data_pattern_daily)
+        
+        print(f"Debug: {symbol} - Monthly files found: {existing_monthly_files}")
+        print(f"Debug: {symbol} - Daily files found: {existing_daily_files}")
+        
+        all_existing_files = existing_monthly_files + existing_daily_files
+        print(f"Debug: {symbol} - Found {len(all_existing_files)} existing individual CSV files")
+        
+        # Filter out files that are already covered by existing merged files
+        # Get the latest merged file end date for this symbol
+        output_folder_path = Path(args.folder)
+        merged_file_pattern = f"{symbol.upper()}_*_*.csv"
+        latest_merged_end_date = None
+        
+        for merged_file in output_folder_path.glob(merged_file_pattern):
+            try:
+                symbol_prefix_in_filename = symbol.upper() + "_"
+                if not merged_file.stem.startswith(symbol_prefix_in_filename):
+                    continue
+                dates_section = merged_file.stem[len(symbol_prefix_in_filename):]
+                date_strings = dates_section.split('_')
+                if len(date_strings) == 2:
+                    end_date_str_from_file = date_strings[1]
+                    parsed_end_date = datetime.strptime(end_date_str_from_file, "%Y%m%d").date()
+                    if latest_merged_end_date is None or parsed_end_date > latest_merged_end_date:
+                        latest_merged_end_date = parsed_end_date
+            except:
+                continue
+        
+        print(f"Debug: {symbol} - Latest merged end date: {latest_merged_end_date}")
+        
+        # Only include files that are after the latest merged date
+        if latest_merged_end_date:
+            filtered_files = []
+            for file_path in all_existing_files:
+                try:
+                    file_date = parse_date_from_filename(file_path)
+                    if file_date > latest_merged_end_date:
+                        filtered_files.append(file_path)
+                        print(f"Debug: {symbol} - Including file {file_path} (date: {file_date})")
+                    else:
+                        print(f"Debug: {symbol} - Skipping file {file_path} (date: {file_date}) - already merged")
+                except:
+                    print(f"Debug: {symbol} - Could not parse date from {file_path}")
+            symbol_files.extend(filtered_files)
+        else:
+            symbol_files.extend(all_existing_files)
+            print(f"Debug: {symbol} - No existing merged file, including all {len(all_existing_files)} individual files")
+        
+        if symbol_files:
+            symbols_with_files_to_merge[symbol] = symbol_files
+            print(f"Debug: {symbol} - Total files to merge: {len(symbol_files)}")
+    
+    if symbols_with_files_to_merge:
+        print(f"\nStarting CSV merging process for {len(symbols_with_files_to_merge)} symbols...")
+        for symbol, csv_paths in symbols_with_files_to_merge.items():
+            print(f"Merging {len(csv_paths)} files for symbol {symbol}")
+            merge_symbol_klines_csvs(symbol, csv_paths, args.folder)
     else:
-        print("No files were downloaded or extracted. Skipping merge process.")
+        print("No files found to merge.")

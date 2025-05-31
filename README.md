@@ -1,114 +1,108 @@
-# Binance Public Data
+# 바이낸스 퍼블릭 데이터 다운로더
 
-The website [Binance Data Collection](https://data.binance.vision/) offers easy access for anyone to download Binance's public market data, which is aggregated into `daily` or `monthly` files.
+바이낸스 퍼블릭 데이터 저장소에서 과거 암호화폐 데이터를 다운로드하는 파이썬 툴킷임.
 
-All symbols are supported, with new `daily` data becoming available the next day and new `monthly` data at the first monday of the month.
+## 🚀 빠른 시작
 
-## Data Information
+### 1. 설정
+```bash
+# 레포지토리로 이동
+cd binance-public-data
 
-### SPOT
-
-**Note**: The timestamp for SPOT Data from January 1st 2025 onwards will be in microseconds.
-
-#### AggTrades
-The `aggTrades` files' data is obtained from `/api/v3/aggTrades` API endpoint:
-
-|Aggregate tradeId|Price|Quantity|First tradeId|Last tradeId|Timestamp|Was the buyer the maker|Was the trade the best price match|
-| -- | -- | -- | -- | -- | -- | -- | -- |
-|0|0.20000000|50.00000000|0|0|1735689600010866|False|True|
-
-#### Klines
-The `klines` files' data is obtained from `/api/v3/klines` API endpoint:
-
-|Open time|Open|High|Low|Close|Volume|Close time|Quote asset volume|Number of trades|Taker buy base asset volume|Taker buy quote asset volume|Ignore|
-| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-|1735689600000000|4.15070000|4.15870000|4.15060000|4.15540000|539.23000000|1735693199999999|2240.39860900|13|401.82000000|1669.98121300|0|
-
-All kline intervals are supported: 
-- `1s`, `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `6h`, `8h`, `12h`, `1d`, `3d`, `1w`, `1mo`.
-- `1mo` is used instead of `1M` to supprt non-case sensitive file systems.
-
-#### Trades
-The `trades` files' data is obtained from `/api/v3/historicalTrades` API endpoint:
-
-|trade Id| price| qty|quoteQty|time|isBuyerMaker|isBestMatch|
-| -- | -- | -- | -- | -- | -- | -- |
-|51175358|17.80180000|5.69000000|101.29224200|1735689600010866|True|True|
-
-
-### FUTURES
-* USD-M Futures
-* COIN-M Futures
-
-#### AggTrades
-The `aggTrades` files' data is the same as that from `/fapi/v1/aggTrades` or `/dapi/v1/aggTrades` API endpoints:
-
-|Aggregate tradeId|Price|Quantity|First tradeId|Last tradeId|Timestamp|Was the buyer the maker|
-| -- | -- | -- | -- | -- | -- | -- |
-|26129|0.01633102|4.70443515|27781|27781|1498793709153|true|
-
-#### Klines
-USD-M Futures `klines` files' data is from `/fapi/v1/klines` API endpoint:
-
-|Open time|Open|High|Low|Close|Volume|Close time|Quote asset volume|Number of trades|Taker buy base asset volume|Taker buy quote asset volume|Ignore|
-| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-|1499040000000|0.01634790|0.80000000|0.01575800|0.01577100|148976.11427815|1499644799999|2434.19055334|308|1756.87402397|28.46694368|17928899.62484339|
-
-COIN-M Futures `klines` files' data is from `/dapi/v1/klines` API endpoint:
-
-|Open time|Open|High|Low|Close|Volume|Close time|Base asset volume|Number of trades|Taker buy volume|Taker buy base asset volume|Ignore|
-| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |
-|1591258320000|9640.7|9642.4|9640.6|9642.0|206|1591258379999|2.13660389|48|119|1.23424865|0|
-
-#### Trades
-USD-M Futures `trades` files' data is from `/fapi/v1/trades` API endpoint and save into a file with these columns:
-
-|trade Id| price| qty|quoteQty|time|isBuyerMaker|
-| -- | -- | -- | -- | -- | -- |
-|28457|4.00000100|12.00000000|48.00|1499865549590|true|
-
-COIN-M Futures `trades` files' data is from `/dapi/v1/trades` API endpoint and save into a file with these columns:
-
-|trade Id| price| qty|baseQty|time|isBuyerMaker|
-| -- | -- | -- | -- | -- | -- |
-|28457|9635.0|1|0.01037883|1591250192508|true|
-
-
-## How to download programatically
-
-```shell
-# Examples for downloading monthly Spot 1h lines for "ADABKRW" symbol.
-curl -s "https://data.binance.vision/data/spot/monthly/klines/ADABKRW/1h/ADABKRW-1h-2020-08.zip" -o ADABKRW-1h-2020-08.zip
-wget "https://data.binance.vision/data/spot/monthly/klines/ADABKRW/1h/ADABKRW-1h-2020-08.zip"
+# 설정 스크립트 실행 (의존성 설치)
+./setup.sh
 ```
 
-More examples are available in the form of helper scripts in both the `python` and `shell` folders of this repository for downloading from the website.
-In case you want to obtain all current running symbols from Spot and Futures, you can take use of  `shell/fetch-all-trading-pairs.sh` script.
+### 2. 데이터 다운로드
+```bash
+cd python
 
-## CHECKSUM
-Each zip file has a `.CHECKSUM` file together in the same folder to verify data integrity. The verification can be done through:
+# 비트코인 일봉 데이터 다운로드 (지난 달)
+python3 download-kline2.py -t spot -s BTCUSDT -i 1d -startDate 2024-01-01 -endDate 2024-01-31
 
-```shell
-# Linux
-sha256sum -c BNBUSDT-1m-2021-01.zip.CHECKSUM
-
-# MacOS
-shasum -a 256 -c BNBUSDT-1m-2021-01.zip.CHECKSUM
+# 여러 심볼에 다양한 간격으로 다운로드
+python3 download-kline2.py -t spot -s BTCUSDT ETHUSDT -i 1h 1d -startDate 2024-01-01
 ```
 
-### Updates
+## 📋 기능
 
-Archived files may be updated at a later date as a result of recently discovered issues. Below is an exhaustive list of updates performed to the archive, containing the file path for reference, and CHECKSUMs of the replaced file and the replacement file:
+- ✅ **멀티 심볼 다운로드**: 여러 암호화폐를 동시에 다운로드함
+- ✅ **유연한 간격**: 모든 바이낸스 간격 지원 (1초 ~ 1개월)
+- ✅ **자동 병합**: 개별 파일들을 종합 데이터셋으로 자동 병합함
+- ✅ **점진적 업데이트**: 중단된 다운로드 재개 및 기존 데이터 업데이트
+- ✅ **비동기 다운로드**: `fgrequests`를 사용한 빠른 병렬 다운로드
+- ✅ **데이터 검증**: 자동 타임스탬프 보정 및 데이터 일관성 검사
+- ✅ **다양한 거래 타입**: 현물, USD-M 선물, COIN-M 선물 지원
 
-| Date | Changelog File | Note |
-| --|--|--|
-| 2022-08-08 | [updates/2022-08-08_kline_updates.zip](updates/2022-08-08_kline_updates.zip) | Fixed inconsistent data|
-| 2022-04-21 | [updates/2022-04-21_aggregate_trade_updates.zip](updates/2022-04-21_aggregate_trade_updates.zip) | Align to the [Spot aggregate trade data change](https://github.com/binance/binance-spot-api-docs/blob/master/CHANGELOG.md#2022-04-12) |
+## 📁 프로젝트 구조
 
+```
+binance-public-data/
+├── python/
+│   ├── download-kline2.py      # 메인 다운로더 스크립트
+│   ├── enums.py                # 상수 및 열거형
+│   ├── utility.py              # 헬퍼 함수들
+│   ├── requirements.txt        # 파이썬 의존성
+│   └── README_SETUP.md         # 상세 사용 가이드
+├── setup.sh                    # 빠른 설정 스크립트
+└── README.md                   # 이 파일
+```
 
-## Issue/Question
+## 🛠 요구사항
 
-Please open an issue [here](https://github.com/binance/binance-public-data/issues). 
+- Python 3.7+
+- 의존성: `pandas`, `numpy`, `fgrequests`
 
-## Licence
-MIT
+## 📖 문서
+
+상세한 사용법, 명령줄 옵션, 예제는 여기 참고:
+- [`python/README_SETUP.md`](python/README_SETUP.md) - 완전한 사용 가이드
+- [`python/download-kline2.py`](python/download-kline2.py) - 인라인 문서가 있는 메인 스크립트
+
+## 🎯 일반적인 사용 사례
+
+### 분석용 과거 데이터 다운로드
+```bash
+# 주요 코인들의 1년치 일봉 OHLCV 데이터 가져오기
+python3 download-kline2.py -t spot -s BTCUSDT ETHUSDT ADAUSDT -i 1d -startDate 2023-01-01 -endDate 2023-12-31
+```
+
+### 고빈도 거래 데이터
+```bash
+# 알고리즘 거래용 분봉 데이터 가져오기
+python3 download-kline2.py -t spot -s BTCUSDT -i 1m -startDate 2024-01-01 -endDate 2024-01-07
+```
+
+### 멀티 타임프레임 분석
+```bash
+# 기술적 분석을 위한 여러 간격 다운로드
+python3 download-kline2.py -t spot -s ETHUSDT -i 1h 4h 1d -startDate 2024-01-01
+```
+
+## 📊 출력 형식
+
+데이터는 다음 구조의 CSV 파일로 저장됨:
+```
+open_time,open,high,low,close,volume,close_time,quote_volume,count,taker_buy_volume,taker_buy_quote_volume,ignore
+1640995200000,46222.99,46929.00,46089.00,46904.99,1234.56789,1641081599999,57234567.89,12345,567.89123,26234567.89,0
+```
+
+병합된 파일 이름: `SYMBOL_STARTDATE_ENDDATE.csv` (예: `BTCUSDT_20240101_20241231.csv`)
+
+## 🚨 중요 사항
+
+- **큰 다운로드**: 모든 심볼이나 긴 기간 다운로드는 상당한 디스크 공간이 필요함
+- **요청 제한**: 스크립트는 바이낸스의 퍼블릭 데이터 제한을 존중함
+- **네트워크 의존성**: 큰 다운로드를 위해 안정적인 인터넷 연결이 필요함
+- **점진적 업데이트**: 스크립트가 기존 데이터를 자동 감지해서 재다운로드를 피함
+
+## 📞 지원
+
+문제, 질문, 기능 요청은:
+1. [`python/README_SETUP.md`](python/README_SETUP.md)의 상세 문서 확인
+2. 문제 해결 섹션 검토
+3. 스크립트의 인라인 문서 검토
+
+## 📄 라이선스
+
+이 프로젝트는 교육 및 연구 목적으로 제공됨. 바이낸스의 퍼블릭 데이터 사용 시 이용약관을 준수하기 바람.
