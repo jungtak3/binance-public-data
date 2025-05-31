@@ -22,6 +22,11 @@ python3 download-kline2.py -t spot -s BTCUSDT -i 1d -startDate 2024-01-01 -endDa
 
 # 여러 심볼에 다양한 간격으로 다운로드
 python3 download-kline2.py -t spot -s BTCUSDT ETHUSDT -i 1h 1d -startDate 2024-01-01
+
+질문1, 2 데이터 다운로드
+python ./binance-public-data/python/download-kline2.py -t spot -i 1d -skip-daily 1 -s btcusdt ltcusdt neousdt ethusdt
+usdt로 다운로드 한 이유는 usdc는 데이터가 더 짧음
+
 ```
 
 ## 📋 기능
@@ -91,18 +96,5 @@ open_time,open,high,low,close,volume,close_time,quote_volume,count,taker_buy_vol
 
 ## 🚨 중요 사항
 
-- **큰 다운로드**: 모든 심볼이나 긴 기간 다운로드는 상당한 디스크 공간이 필요함
 - **요청 제한**: 스크립트는 바이낸스의 퍼블릭 데이터 제한을 존중함
-- **네트워크 의존성**: 큰 다운로드를 위해 안정적인 인터넷 연결이 필요함
 - **점진적 업데이트**: 스크립트가 기존 데이터를 자동 감지해서 재다운로드를 피함
-
-## 📞 지원
-
-문제, 질문, 기능 요청은:
-1. [`python/README_SETUP.md`](python/README_SETUP.md)의 상세 문서 확인
-2. 문제 해결 섹션 검토
-3. 스크립트의 인라인 문서 검토
-
-## 📄 라이선스
-
-이 프로젝트는 교육 및 연구 목적으로 제공됨. 바이낸스의 퍼블릭 데이터 사용 시 이용약관을 준수하기 바람.
